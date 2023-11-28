@@ -1,0 +1,12 @@
+version: '3'
+
+services:
+  python-cli:
+    image: python:3.12.0-alpine3.18
+    restart: always
+    tty: true
+    volumes:
+      - ./app:/var/www/git-counter/app
+      - ./requirements.txt:/var/www/git-counter/requirements.txt
+#      - ./site-packages:/usr/local/lib/python3.12/site-packages
+    working_dir: /var/www/git-counter
