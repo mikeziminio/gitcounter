@@ -27,10 +27,10 @@ class BaseConsoleRouter:
 
 class ConsoleRouter(BaseConsoleRouter):
     def add_repo(self, name: str):
-        git_analyzer.add_repo(name)
+        asyncio.run(git_analyzer.add_repo(name))
 
     def update_repo_stat(self, name: str):
-        git_analyzer.update_repo_stat(name)
+        asyncio.run(git_analyzer.update_repo_stat(name))
 
     def update_all_repos_stat(self):
         asyncio.run(git_analyzer.update_all_repos_stat())

@@ -40,7 +40,7 @@ class GitAnalyzer:
 
         return df
 
-    def add_repo(self, name: str):
+    async def add_repo(self, name: str):
         with Session(self.engine) as session:
             try:
                 repo = session.scalars(select(Repo).filter_by(name=name)).one()
@@ -50,7 +50,7 @@ class GitAnalyzer:
                 )
                 session.add(repo)
                 session.commit()
-        self.update_repo_stat(name)
+        await self.update_repo_stat(name)
 
     async def update_all_repos_stat(self):
 
