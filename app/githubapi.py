@@ -14,16 +14,19 @@ class GithubAPI:
         req_headers = {
             "Authorization": f"Bearer {self.token}"
         }
-        async with aiohttp.ClientSession() as session:
-            if self.echo:
-                print("GRAPHQL REQUEST:")
-                print(req_json)
-            async with session.post(self.api_url, headers=req_headers, json=req_json) as response:
-                r = await response.json()
+        try:
+            async with aiohttp.ClientSession() as session:
                 if self.echo:
-                    print("GRAPHQL RESPONSE:")
-                    print(r)
-                return r
+                    print("GRAPHQL REQUEST:")
+                    print(req_json)
+                async with session.post(self.api_url, headers=req_headers, json=req_json) as response:
+                    r = await response.json()
+                    if self.echo:
+                        print("GRAPHQL RESPONSE:")
+                        print(r)
+                    return r
+        except aiohttp.ClientError as e:
+            pass
 
     async def query(self, query_body: str, variables: dict = None):
         req_json = {"query": query_body}
