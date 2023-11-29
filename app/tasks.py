@@ -3,8 +3,20 @@ from typing import Callable
 from celery import Celery
 from celery.schedules import crontab
 from gitanalyzer import GitAnalyzer
+import os
+from dotenv import load_dotenv
 
-app = Celery("tasks", broker="amqp://gitcounter:Git_Counter_8228@localhost:5672/gitcounter")
+env_path = os.path.abspath(os.path.dirname(__file__) + "/../.env")
+load_dotenv(env_path)
+
+RABBITMQ_USER = os.environ["RABBITMQ_USER"]
+RABBITMQ_PASSWORD = os.environ["RABBITMQ_PASSWORD"]
+RABBITMQ_HOST = os.environ["RABBITMQ_HOST"]
+RABBITMQ_PORT = os.environ["RABBITMQ_PORT"]
+RABBITMQ_VHOST = os.environ["RABBITMQ_VHOST"]
+
+
+app = Celery("tasks", broker=f"amqp://{RABBITMQ_USER}:{RABBITMQ_PASSWORD}@{RABBITMQ_HOST}:{RABBITMQ_PORT}/{RABBITMQ_VHOST}")
 git_analyzer = GitAnalyzer()
 
 

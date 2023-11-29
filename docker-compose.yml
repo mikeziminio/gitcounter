@@ -3,7 +3,7 @@ version: "3.8"
 x-python-service:
     &python-service
     build:
-        context: ./dockerfiles/python
+        context: ./config/python-service
         args:
             - PROJECT_PATH=$PROJECT_PATH
     tty: true
@@ -15,9 +15,23 @@ x-python-service:
 
 services:
 
+    dashboard-uvicorn:
+        <<: *python-service
+        ports:
+            - "48000:48000"
+        command:
+            - /bin/bash
+            - -c
+            - |
+                source ./.venv/bin/activate &&
+                poetry install --no-root &&
+                cd app &&
+                uvicorn main:app --port 48000
+
     celery-beat:
         << : *python-service
         depends_on:
+            - rabbitmq
             - celery-worker
         command:
             - /bin/bash
@@ -30,6 +44,8 @@ services:
 
     celery-worker:
         << : *python-service
+        depends_on:
+            - rabbitmq
         command:
             - /bin/bash
             - -c
@@ -38,3 +54,12 @@ services:
                 poetry install --no-root &&
                 cd app &&
                 celery -A tasks worker
+
+    rabbitmq:
+        build:
+            context: ./config/rabbitmq
+        ports:
+            - "45672:45672"
+        volumes:
+            - ./config/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+        env_file: .env
