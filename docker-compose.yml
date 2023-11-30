@@ -3,20 +3,23 @@ version: "3.8"
 x-python-service:
     &python-service
     build:
-        context: ./config/python-service
+        context: ./setup/python-service
         args:
             - PROJECT_PATH=$PROJECT_PATH
+    restart: always
     tty: true
     volumes:
         - ./app:$PROJECT_PATH/app
         - ./pyproject.toml:$PROJECT_PATH/pyproject.toml
         - ./.env:$PROJECT_PATH/.env
-    env_file: .env
+    env_file: .envconfig
 
 services:
 
     dashboard-uvicorn:
         <<: *python-service
+        depends_on:
+            - postgres
         ports:
             - "48000:48000"
         command:
@@ -33,6 +36,7 @@ services:
         depends_on:
             - rabbitmq
             - celery-worker
+            - postgres
         command:
             - /bin/bash
             - -c
@@ -46,6 +50,7 @@ services:
         << : *python-service
         depends_on:
             - rabbitmq
+            - postgres
         command:
             - /bin/bash
             - -c
@@ -57,9 +62,18 @@ services:
 
     rabbitmq:
         build:
-            context: ./config/rabbitmq
+            context: ./setup/rabbitmq
         ports:
             - "45672:45672"
         volumes:
-            - ./config/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+            # - ./config/rabbitmq/rabbitmq.conf.template:/etc/rabbitmq/rabbitmq.conf.template
+            - ./setup/rabbitmq/rabbitmq.conf.template:$PROJECT_PATH/setup/rabbitmq/rabbitmq.conf.template
         env_file: .env
+
+    postgres:
+        image: postgres:16.1-alpine3.18
+        restart: always
+        ports:
+            - "45432:45432"
+        env_file: .env
+
