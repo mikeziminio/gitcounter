@@ -12,62 +12,60 @@ x-python-service:
         - ./app:$PROJECT_PATH/app
         - ./pyproject.toml:$PROJECT_PATH/pyproject.toml
         - ./.env:$PROJECT_PATH/.env
-    env_file: .envconfig
+    env_file: .env
 
 services:
 
-    dashboard-uvicorn:
-        <<: *python-service
-        depends_on:
-            - postgres
-        ports:
-            - "48000:48000"
-        command:
-            - /bin/bash
-            - -c
-            - |
-                source ./.venv/bin/activate &&
-                poetry install --no-root &&
-                cd app &&
-                uvicorn main:app --port 48000
-
-    celery-beat:
-        << : *python-service
-        depends_on:
-            - rabbitmq
-            - celery-worker
-            - postgres
-        command:
-            - /bin/bash
-            - -c
-            - |
-                source ./.venv/bin/activate &&
-                poetry install --no-root &&
-                cd app &&
-                celery -A tasks beat
-
-    celery-worker:
-        << : *python-service
-        depends_on:
-            - rabbitmq
-            - postgres
-        command:
-            - /bin/bash
-            - -c
-            - |
-                source ./.venv/bin/activate &&
-                poetry install --no-root &&
-                cd app &&
-                celery -A tasks worker
+#    dashboard-uvicorn:
+#        <<: *python-service
+#        depends_on:
+#            - postgres
+#        ports:
+#            - "48000:48000"
+#        command:
+#            - /bin/bash
+#            - -c
+#            - |
+#                source ./.venv/bin/activate &&
+#                poetry install --no-root &&
+#                cd app &&
+#                uvicorn main:app --port 48000
+#
+#    celery-beat:
+#        << : *python-service
+#        depends_on:
+#            - rabbitmq
+#            - celery-worker
+#            - postgres
+#        command:
+#            - /bin/bash
+#            - -c
+#            - |
+#                source ./.venv/bin/activate &&
+#                poetry install --no-root &&
+#                cd app &&
+#                celery -A tasks beat
+#
+#    celery-worker:
+#        << : *python-service
+#        depends_on:
+#            - rabbitmq
+#            - postgres
+#        command:
+#            - /bin/bash
+#            - -c
+#            - |
+#                source ./.venv/bin/activate &&
+#                poetry install --no-root &&
+#                cd app &&
+#                celery -A tasks worker
 
     rabbitmq:
-        build:
-            context: ./setup/rabbitmq
+        image: rabbitmq:3.12.9-alpine
         ports:
-            - "45672:45672"
+            - "${RABBITMQ_PORT}:${RABBITMQ_CONTAINER_PORT}"
         volumes:
-            # - ./config/rabbitmq/rabbitmq.conf.template:/etc/rabbitmq/rabbitmq.conf.template
-            - ./setup/rabbitmq/rabbitmq.conf.template:$PROJECT_PATH/setup/rabbitmq/rabbitmq.conf.template
+            - ./setup/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
         env_file: .env
 
     postgres:

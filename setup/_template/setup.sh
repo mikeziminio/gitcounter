@@ -4,5 +4,5 @@
 dir_name=$(dirname "$(realpath "$0")")
 
 # Установка пакета GNU gettext, который включает в себя envsubst
-bash $dir_name/../universal_install.sh gettext
+bash "$dir_name/../universal_install.sh" gettext
 
