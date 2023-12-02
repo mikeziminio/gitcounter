@@ -8,11 +8,14 @@ x-python-service:
             - PROJECT_PATH=$PROJECT_PATH
     restart: always
     tty: true
-    volumes: &python-service-volumes
-        - ./.venv:$PROJECT_PATH/.venv
-        - ./app:$PROJECT_PATH/app
+    volumes:
+        - shared_venv:$PROJECT_PATH/.venv
+        - ./src:$PROJECT_PATH/src
         - ./pyproject.toml:$PROJECT_PATH/pyproject.toml
         - ./.env:$PROJECT_PATH/.env
+        - ./setup/python-service/alembic.ini:$PROJECT_PATH/setup/python-service/alembic.ini
+        - ./setup/tools:$PROJECT_PATH/setup/tools
+    working_dir: $PROJECT_PATH
     env_file: .env
 
 services:
@@ -22,7 +25,7 @@ services:
         restart: no
         depends_on:
             - postgres
-            - rabbitmq
+#            - rabbitmq
         command:
             - /bin/bash
             - -c
@@ -43,46 +46,47 @@ services:
             - -c
             - |
                 source ./.venv/bin/activate &&
-                cd app &&
-                uvicorn main:app --port 48000
+                source ./setup/tools/wait-for-command.sh uvicorn &&
+                source ./setup/tools/wait-for-socket.sh "$POSTGRES_HOST" "$POSTGRES_PORT" &&
+                cd src &&
+                uvicorn main:app --port $DASHBOARD_CONTAINER_PORT
 
-    celery-beat:
-        << : *python-service
-        volumes:
-            - *python-service-volumes
-            - ./data/celery-beat:$PROJECT_PATH/data/celery-beat
-        depends_on:
-            - env-up
-            - celery-worker
-        command:
-            - /bin/bash
-            - -c
-            - |
-                source ./.venv/bin/activate &&
-                cd app &&
-                celery -A tasks beat --schedule $PROJECT_PATH/data/celery-beat/celerybeat-schedule.db
+#    celery-beat:
+#        << : *python-service
+#        volumes:
+#            - ./data/celery-beat:$PROJECT_PATH/data/celery-beat
+#        depends_on:
+#            - env-up
+#            - celery-worker
+#        command:
+#            - /bin/bash
+#            - -c
+#            - |
+#                source ./.venv/bin/activate &&
+#                cd src &&
+#                celery -A tasks beat --schedule $PROJECT_PATH/data/celery-beat/celerybeat-schedule.db
+#
+#    celery-worker:
+#        << : *python-service
+#        depends_on:
+#            - env-up
+#        command:
+#            - /bin/bash
+#            - -c
+#            - |
+#                source ./.venv/bin/activate &&
+#                cd src &&
+#                celery -A tasks worker
 
-    celery-worker:
-        << : *python-service
-        depends_on:
-            - env-up
-        command:
-            - /bin/bash
-            - -c
-            - |
-                source ./.venv/bin/activate &&
-                cd app &&
-                celery -A tasks worker
-
-    rabbitmq:
-        image: rabbitmq:3.12.9-alpine
-        restart: always
-        hostname: $RABBITMQ_HOST
-        ports:
-            - "${RABBITMQ_PORT}:${RABBITMQ_CONTAINER_PORT}"
-        volumes:
-            - ./setup/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
-        env_file: .env
+#    rabbitmq:
+#        image: rabbitmq:3.12.9-alpine
+#        restart: always
+#        hostname: $RABBITMQ_HOST
+#        ports:
+#            - "${RABBITMQ_PORT}:${RABBITMQ_CONTAINER_PORT}"
+#        volumes:
+#            - ./setup/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+#        env_file: .env
 
     postgres:
         image: postgres:16.1-alpine3.18
@@ -94,4 +98,7 @@ services:
             - ./setup/postgres/postgresql.conf:/etc/postgresql/postgresql.conf
             - ./setup/postgres/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
         env_file: .env
+
+volumes:
+    shared_venv:
 
