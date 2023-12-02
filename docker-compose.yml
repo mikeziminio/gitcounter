@@ -8,7 +8,8 @@ x-python-service:
             - PROJECT_PATH=$PROJECT_PATH
     restart: always
     tty: true
-    volumes:
+    volumes: &python-service-volumes
+        - ./.venv:$PROJECT_PATH/.venv
         - ./app:$PROJECT_PATH/app
         - ./pyproject.toml:$PROJECT_PATH/pyproject.toml
         - ./.env:$PROJECT_PATH/.env
@@ -16,52 +17,67 @@ x-python-service:
 
 services:
 
-#    dashboard-uvicorn:
-#        <<: *python-service
-#        depends_on:
-#            - postgres
-#        ports:
-#            - "48000:48000"
-#        command:
-#            - /bin/bash
-#            - -c
-#            - |
-#                source ./.venv/bin/activate &&
-#                poetry install --no-root &&
-#                cd app &&
-#                uvicorn main:app --port 48000
-#
-#    celery-beat:
-#        << : *python-service
-#        depends_on:
-#            - rabbitmq
-#            - celery-worker
-#            - postgres
-#        command:
-#            - /bin/bash
-#            - -c
-#            - |
-#                source ./.venv/bin/activate &&
-#                poetry install --no-root &&
-#                cd app &&
-#                celery -A tasks beat
-#
-#    celery-worker:
-#        << : *python-service
-#        depends_on:
-#            - rabbitmq
-#            - postgres
-#        command:
-#            - /bin/bash
-#            - -c
-#            - |
-#                source ./.venv/bin/activate &&
-#                poetry install --no-root &&
-#                cd app &&
-#                celery -A tasks worker
+    env-up:
+        <<: *python-service
+        restart: no
+        depends_on:
+            - postgres
+            - rabbitmq
+        command:
+            - /bin/bash
+            - -c
+            - |
+                source ./.venv/bin/activate &&
+                poetry install --no-root
+            # TODO: добавить alembic
+
+    dashboard-uvicorn:
+        <<: *python-service
+        depends_on:
+            - env-up
+        hostname: $DASHBOARD_HOST
+        ports:
+            - "${DASHBOARD_PORT}:${DASHBOARD_CONTAINER_PORT}"
+        command:
+            - /bin/bash
+            - -c
+            - |
+                source ./.venv/bin/activate &&
+                cd app &&
+                uvicorn main:app --port 48000
+
+    celery-beat:
+        << : *python-service
+        volumes:
+            - *python-service-volumes
+            - ./data/celery-beat:$PROJECT_PATH/data/celery-beat
+        depends_on:
+            - env-up
+            - celery-worker
+        command:
+            - /bin/bash
+            - -c
+            - |
+                source ./.venv/bin/activate &&
+                cd app &&
+                celery -A tasks beat --schedule $PROJECT_PATH/data/celery-beat/celerybeat-schedule.db
+
+    celery-worker:
+        << : *python-service
+        depends_on:
+            - env-up
+        command:
+            - /bin/bash
+            - -c
+            - |
+                source ./.venv/bin/activate &&
+                cd app &&
+                celery -A tasks worker
 
     rabbitmq:
         image: rabbitmq:3.12.9-alpine
+        restart: always
+        hostname: $RABBITMQ_HOST
         ports:
             - "${RABBITMQ_PORT}:${RABBITMQ_CONTAINER_PORT}"
         volumes:
@@ -71,7 +87,11 @@ services:
     postgres:
         image: postgres:16.1-alpine3.18
         restart: always
+        hostname: $POSTGRES_HOST
         ports:
-            - "45432:45432"
+            - "${POSTGRES_PORT}:${POSTGRES_CONTAINER_PORT}"
+        volumes:
+            - ./setup/postgres/postgresql.conf:/etc/postgresql/postgresql.conf
+            - ./setup/postgres/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
         env_file: .env
 
