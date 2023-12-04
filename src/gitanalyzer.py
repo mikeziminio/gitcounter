@@ -14,7 +14,16 @@ from functools import reduce
 from dotenv import load_dotenv
 
 load_dotenv(os.path.abspath(os.path.dirname(__file__) + "/../.env"))
+
 GITHUB_API_TOKEN = os.environ["GITHUB_API_TOKEN"]
+
+POSTGRES_DB = os.environ["POSTGRES_DB"]
+POSTGRES_USER = os.environ["POSTGRES_USER"]
+POSTGRES_PASSWORD = os.environ["POSTGRES_PASSWORD"]
+POSTGRES_HOST = os.environ["POSTGRES_HOST"]
+POSTGRES_CONTAINER_PORT = os.environ["POSTGRES_CONTAINER_PORT"]
+POSTGRES_DSN =\
+    f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_CONTAINER_PORT}/{POSTGRES_DB}"
 
 
 class GitAnalyzer:
@@ -22,7 +31,8 @@ class GitAnalyzer:
     __slots__ = ('engine', )
 
     def __init__(self):
-        self.engine = create_engine('postgresql://gitcounter:gitcounter@localhost/gitcounter', echo=True)
+        postgres_dsn = POSTGRES_DSN
+        self.engine = create_engine(postgres_dsn, echo=True)
 
     def update_db_schema(self):
         pass
@@ -73,7 +83,7 @@ class GitAnalyzer:
 
             # перебираем за месяц от крайнего дня + 1 (чтобы на графике удобно отображалось)
             current_date: date = date.today() + timedelta(days=1)
-            begin_date: date = current_date - timedelta(days=3)
+            begin_date: date = current_date - timedelta(days=40)
 
             print(f"{current_date = }, {begin_date = }")
 

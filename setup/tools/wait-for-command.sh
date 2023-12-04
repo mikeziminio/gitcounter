@@ -1,7 +1,8 @@
 #!/bin/bash
 
-echo "Waiting for command $1 availability..."
-
-while ! command -v "$1" &> /dev/null; do
-    sleep 0.1
+while ! command -v "$1"; do
+    sleep 2
+    echo "Waiting for command $1 availability..."
 done
+
+echo "Command $1 is available"

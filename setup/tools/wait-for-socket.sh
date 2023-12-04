@@ -1,7 +1,8 @@
 #!/bin/bash
 
-echo "Waiting for socket $1:$2 availability..."
-
-while ! nc -zv "$1" "$2" &> /dev/null; do
-    sleep 0.1
+while ! nc -zv "$1" "$2"; do
+    sleep 2
+    echo "Waiting for socket $1:$2 availability..."
 done
+
+echo "Socket $1:$2 is available"

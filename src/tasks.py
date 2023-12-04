@@ -12,11 +12,12 @@ load_dotenv(env_path)
 RABBITMQ_USER = os.environ["RABBITMQ_USER"]
 RABBITMQ_PASSWORD = os.environ["RABBITMQ_PASSWORD"]
 RABBITMQ_HOST = os.environ["RABBITMQ_HOST"]
-RABBITMQ_PORT = os.environ["RABBITMQ_PORT"]
+RABBITMQ_CONTAINER_PORT = os.environ["RABBITMQ_CONTAINER_PORT"]
 RABBITMQ_VHOST = os.environ["RABBITMQ_VHOST"]
 
+broker_url = f"amqp://{RABBITMQ_USER}:{RABBITMQ_PASSWORD}@{RABBITMQ_HOST}:{RABBITMQ_CONTAINER_PORT}/{RABBITMQ_VHOST}"
 
-app = Celery("tasks", broker=f"amqp://{RABBITMQ_USER}:{RABBITMQ_PASSWORD}@{RABBITMQ_HOST}:{RABBITMQ_PORT}/{RABBITMQ_VHOST}")
+app = Celery("tasks", broker=broker_url)
 git_analyzer = GitAnalyzer()
 
 

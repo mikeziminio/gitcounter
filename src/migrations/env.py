@@ -13,7 +13,7 @@ from entities import Base
 POSTGRES_USER = os.environ["POSTGRES_USER"]
 POSTGRES_PASSWORD = os.environ["POSTGRES_PASSWORD"]
 POSTGRES_HOST = os.environ["POSTGRES_HOST"]
-POSTGRES_PORT = os.environ["POSTGRES_PORT"]
+POSTGRES_CONTAINER_PORT = os.environ["POSTGRES_CONTAINER_PORT"]
 POSTGRES_DB = os.environ["POSTGRES_DB"]
 
 # this is the Alembic Config object, which provides
@@ -25,8 +25,6 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-
-
 # add your model's MetaData object here
 # for 'autogenerate' support
 
@@ -36,6 +34,9 @@ target_metadata = Base.metadata
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
+
+url = f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_CONTAINER_PORT}/{POSTGRES_DB}"
+config.set_main_option("sqlalchemy.url", url)
 
 
 def run_migrations_offline() -> None:
@@ -50,8 +51,6 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-
-    url = f"psql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
 
     context.configure(
         url=url,

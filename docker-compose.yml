@@ -6,8 +6,6 @@ x-python-service:
         context: ./setup/python-service
         args:
             - PROJECT_PATH=$PROJECT_PATH
-    restart: always
-    tty: true
     volumes:
         - shared_venv:$PROJECT_PATH/.venv
         - ./src:$PROJECT_PATH/src
@@ -15,24 +13,32 @@ x-python-service:
         - ./.env:$PROJECT_PATH/.env
         - ./setup/python-service/alembic.ini:$PROJECT_PATH/setup/python-service/alembic.ini
         - ./setup/tools:$PROJECT_PATH/setup/tools
+        - ./data/celery-beat:$PROJECT_PATH/data/celery-beat
+    restart: always
+    tty: true
     working_dir: $PROJECT_PATH
     env_file: .env
+
 
 services:
 
     env-up:
         <<: *python-service
         restart: no
+        hostname: $ENV_UP_HOST
         depends_on:
             - postgres
-#            - rabbitmq
+            - rabbitmq
         command:
             - /bin/bash
             - -c
             - |
                 source ./.venv/bin/activate &&
-                poetry install --no-root
-            # TODO: добавить alembic
+                poetry install --no-root &&
+                cd src &&
+                alembic upgrade head &&
+                nc -k -l -p $ENV_UP_CONTAINER_PORT
+            # netcat keep (-k) listen (-l) port (-p)
 
     dashboard-uvicorn:
         <<: *python-service
@@ -40,61 +46,70 @@ services:
             - env-up
         hostname: $DASHBOARD_HOST
         ports:
-            - "${DASHBOARD_PORT}:${DASHBOARD_CONTAINER_PORT}"
+            - ${DASHBOARD_PORT}:${DASHBOARD_CONTAINER_PORT}
         command:
             - /bin/bash
             - -c
             - |
                 source ./.venv/bin/activate &&
+                source ./setup/tools/wait-for-socket.sh "$ENV_UP_HOST" "$ENV_UP_CONTAINER_PORT" &&
+                source ./setup/tools/wait-for-socket.sh "$POSTGRES_HOST" "$POSTGRES_CONTAINER_PORT" &&
                 source ./setup/tools/wait-for-command.sh uvicorn &&
-                source ./setup/tools/wait-for-socket.sh "$POSTGRES_HOST" "$POSTGRES_PORT" &&
                 cd src &&
-                uvicorn main:app --port $DASHBOARD_CONTAINER_PORT
+                uvicorn main:app --host 0.0.0.0 --port $DASHBOARD_CONTAINER_PORT
 
-#    celery-beat:
-#        << : *python-service
-#        volumes:
-#            - ./data/celery-beat:$PROJECT_PATH/data/celery-beat
-#        depends_on:
-#            - env-up
-#            - celery-worker
-#        command:
-#            - /bin/bash
-#            - -c
-#            - |
-#                source ./.venv/bin/activate &&
-#                cd src &&
-#                celery -A tasks beat --schedule $PROJECT_PATH/data/celery-beat/celerybeat-schedule.db
-#
-#    celery-worker:
-#        << : *python-service
-#        depends_on:
-#            - env-up
-#        command:
-#            - /bin/bash
-#            - -c
-#            - |
-#                source ./.venv/bin/activate &&
-#                cd src &&
-#                celery -A tasks worker
+    celery-beat:
+        << : *python-service
+        depends_on:
+            - env-up
+            - celery-worker
+        command:
+            - /bin/bash
+            - -c
+            - |
+                source ./.venv/bin/activate &&
+                source ./setup/tools/wait-for-socket.sh "$ENV_UP_HOST" "$ENV_UP_CONTAINER_PORT" &&
+                source ./setup/tools/wait-for-socket.sh "$POSTGRES_HOST" "$POSTGRES_CONTAINER_PORT" &&
+                source ./setup/tools/wait-for-socket.sh "$RABBITMQ_HOST" "$RABBITMQ_CONTAINER_PORT" &&
+                source ./setup/tools/wait-for-command.sh celery &&
+                cd src &&
+                celery -A tasks beat --schedule $PROJECT_PATH/data/celery-beat/celerybeat-schedule.db
 
-#    rabbitmq:
-#        image: rabbitmq:3.12.9-alpine
-#        restart: always
-#        hostname: $RABBITMQ_HOST
-#        ports:
-#            - "${RABBITMQ_PORT}:${RABBITMQ_CONTAINER_PORT}"
-#        volumes:
-#            - ./setup/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
-#        env_file: .env
+    celery-worker:
+        << : *python-service
+        depends_on:
+            - env-up
+        command:
+            - /bin/bash
+            - -c
+            - |
+                source ./.venv/bin/activate &&
+                source ./setup/tools/wait-for-socket.sh "$ENV_UP_HOST" "$ENV_UP_CONTAINER_PORT" &&
+                source ./setup/tools/wait-for-socket.sh "$POSTGRES_HOST" "$POSTGRES_CONTAINER_PORT" &&
+                source ./setup/tools/wait-for-socket.sh "$RABBITMQ_HOST" "$RABBITMQ_CONTAINER_PORT" &&
+                source ./setup/tools/wait-for-command.sh celery &&
+                cd src &&
+                celery -A tasks worker
+
+    rabbitmq:
+        image: rabbitmq:3.12.9-alpine
+        restart: always
+        hostname: $RABBITMQ_HOST
+        ports:
+            - ${RABBITMQ_PORT}:${RABBITMQ_CONTAINER_PORT}
+        volumes:
+            - ./data/rabbitmq:/var/lib/rabbitmq
+            - ./setup/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+        env_file: .env
 
     postgres:
         image: postgres:16.1-alpine3.18
         restart: always
         hostname: $POSTGRES_HOST
         ports:
-            - "${POSTGRES_PORT}:${POSTGRES_CONTAINER_PORT}"
+            - ${POSTGRES_PORT}:${POSTGRES_CONTAINER_PORT}
         volumes:
+            - ./data/postgres:/var/lib/postgresql/data
             - ./setup/postgres/postgresql.conf:/etc/postgresql/postgresql.conf
             - ./setup/postgres/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
         env_file: .env

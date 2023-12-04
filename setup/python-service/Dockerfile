@@ -4,6 +4,10 @@ ARG PROJECT_PATH
 WORKDIR $PROJECT_PATH
 
 RUN set -eux; \
+    apt-get update; \
+    apt-get -y install netcat-openbsd
+
+RUN set -eux; \
     python3.11 -m venv ./.venv; \
     ./.venv/bin/pip install -U pip setuptools; \
     ./.venv/bin/pip install poetry
