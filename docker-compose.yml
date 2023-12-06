@@ -15,12 +15,23 @@ x-python-service:
         - ./setup/tools:$PROJECT_PATH/setup/tools
         - ./data/celery-beat:$PROJECT_PATH/data/celery-beat
     restart: always
-    tty: true
     working_dir: $PROJECT_PATH
     env_file: .env
 
 
 services:
+
+    cli:
+        <<: *python-service
+        tty: true
+        build:
+            context: ./setup/cli
+            args:
+                - PROJECT_PATH=$PROJECT_PATH
+        command:
+            - /bin/bash
+            - -c
+            - sleep infinity
 
     env-up:
         <<: *python-service
