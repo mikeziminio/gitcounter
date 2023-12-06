@@ -8,7 +8,7 @@ RUN set -eux; \
     apt-get -y install netcat-openbsd
 
 RUN set -eux; \
-    apt-get install postgresql-12
+    apt-get install postgresql
 
 RUN set -eux; \
     apt-get -y install neovim; \
