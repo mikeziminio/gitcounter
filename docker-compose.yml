@@ -89,7 +89,7 @@ services:
                 source ./setup/tools/wait-for-socket.sh "$RABBITMQ_HOST" "$RABBITMQ_CONTAINER_PORT" &&
                 source ./setup/tools/wait-for-command.sh celery &&
                 cd src &&
-                celery -A tasks worker
+                celery -A tasks worker -O fair
 
     rabbitmq:
         image: rabbitmq:3.12.9-alpine
